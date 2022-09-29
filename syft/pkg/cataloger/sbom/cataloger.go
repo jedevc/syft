@@ -2,13 +2,16 @@ package sbom
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
+
 	"github.com/anchore/syft/syft/formats/cyclonedxjson"
 	"github.com/anchore/syft/syft/formats/cyclonedxxml"
 	"github.com/anchore/syft/syft/formats/spdx22json"
 	"github.com/anchore/syft/syft/formats/spdx22tagvalue"
 	"github.com/anchore/syft/syft/formats/syftjson"
-	"io"
+	"github.com/in-toto/in-toto-golang/in_toto"
 
 	"github.com/anchore/syft/syft/artifact"
 	"github.com/anchore/syft/syft/pkg"
@@ -35,6 +38,11 @@ func makeParser(format sbom.Format) func(string, io.Reader) ([]*pkg.Package, []a
 		by, err := io.ReadAll(reader)
 		if err != nil {
 			return nil, nil, fmt.Errorf("unable to read sbom: %w", err)
+		}
+
+		var stmt in_toto.Statement
+		if err := json.Unmarshal(by, &stmt); err == nil && stmt.Type == in_toto.StatementInTotoV01 {
+			by, _ = json.Marshal(stmt.Predicate)
 		}
 
 		s, err := format.Decode(bytes.NewReader(by))
